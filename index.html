@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI决策支持与创新行为实验</title>
+  <style>
+    :root{
+      --bg:#f6f8fb; --card:#fff; --text:#1f2937; --muted:#6b7280; --line:#dbe3ee;
+      --primary:#2563eb; --primary-soft:#dbeafe; --danger:#b91c1c; --success:#047857; --shadow:0 12px 32px rgba(15,23,42,.08); --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+    .wrap{max-width:980px;margin:0 auto;padding:24px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+    .title{font-size:24px;font-weight:700}
+    .sub{color:var(--muted);font-size:14px}
+    .progress-box{width:100%;background:#e5edf9;border-radius:999px;height:10px;overflow:hidden}
+    .progress{height:100%;background:linear-gradient(90deg,var(--primary),#60a5fa);width:0%}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px;margin-bottom:18px}
+    h1,h2,h3{margin:0 0 14px 0;line-height:1.35}
+    h2{font-size:22px} h3{font-size:18px}
+    p{margin:0 0 12px 0}
+    .muted{color:var(--muted)} .small{font-size:13px} .center{text-align:center} .req{color:var(--danger);font-weight:700;margin-right:4px} .red-emph{color:var(--danger);font-weight:700} .instruction-box{background:#fff7f7;border:1px solid #fecaca;color:#7f1d1d;border-radius:12px;padding:12px 14px;margin:10px 0 14px 0}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .field{margin-bottom:16px} .field label{display:block;font-weight:600;margin-bottom:8px}
+    input[type="text"], input[type="number"], select, textarea{width:100%;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:15px;background:#fff;color:#111827}
+    textarea{min-height:150px;resize:vertical}
+    .hint{font-size:13px;color:var(--muted);margin-top:6px}
+    .choices{display:grid;gap:10px}
+    .choice{border:1px solid #d1d9e6;border-radius:14px;padding:12px 14px;background:#fff;cursor:pointer}
+    .choice:hover{background:#f8fbff}
+    .choice input{margin-right:10px}
+    .scale-table{width:100%;border-collapse:collapse;font-size:14px}
+    .scale-table th,.scale-table td{border-bottom:1px solid #edf2f7;padding:10px 8px;text-align:center;vertical-align:middle}
+    .scale-table th:first-child,.scale-table td:first-child{text-align:left;width:42%}
+    .btns{display:flex;justify-content:space-between;gap:12px;margin-top:22px;flex-wrap:wrap}
+    button{appearance:none;border:none;border-radius:12px;padding:12px 18px;font-size:15px;font-weight:700;cursor:pointer}
+    .btn-primary{background:var(--primary);color:#fff}
+    .btn-secondary{background:#eef2ff;color:#1e3a8a}
+    .btn-danger{background:#fee2e2;color:#991b1b}
+    .hidden{display:none !important}
+    .alert{padding:12px 14px;border-radius:12px;margin-bottom:14px;font-size:14px}
+    .alert-error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+    .alert-success{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+    .pill{display:inline-block;padding:4px 10px;background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:12px;font-weight:700}
+    .footer-note{font-size:13px;color:var(--muted);margin-top:8px}
+    .debug{margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px;color:#475569;font-size:12px}
+    @media (max-width:768px){.wrap{padding:14px} .card{padding:18px} .grid-2{grid-template-columns:1fr} .scale-table{font-size:13px} .scale-table th:first-child,.scale-table td:first-child{width:auto} .title{font-size:20px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <div class="title">AI决策支持与创新行为实验</div>
+        <div class="sub">请根据页面提示依次完成。本研究仅用于学术目的，所有回答匿名处理。</div>
+      </div>
+      <div style="min-width:260px;flex:1;max-width:380px;">
+        <div class="sub" id="progressText">进度：0%</div>
+        <div class="progress-box"><div class="progress" id="progressBar"></div></div>
+      </div>
+    </div>
+    <div id="app">
+      <div class="card">
+        <h2>正在加载页面…</h2>
+        <p class="muted">如果长时间停留在这里，请刷新页面，或在链接后加上 <code>?reset=1</code> 再打开。</p>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function() {
+  "use strict";
+
+  const CFG = {"submitUrl": "https://script.google.com/macros/s/AKfycbzsYioJgSQkJGuGXQPMII1Gl1ru332K8tdXoXnUioshiJ0glsVhR7NrN1Tb6jI3Lw/exec", "storageKey": "ai_experiment_full_v4", "enableResourceTask": true, "conditions": {"HH": {"ai_support": 1, "transparency": 1, "label": "高AI支持 × 高透明度", "scenario": "在本轮项目讨论中，团队将您提出的想法与另外两个备选方案一起提交给 AI 决策辅助系统进行分析。团队成员普遍认为，这套系统在以往项目中表现稳定，能够为团队讨论提供有价值的参考。\n\n这一次，系统不仅整理了各个方案的信息，还对三个方案进行了系统比较，从预期用户价值、资源需求、实施难度和短期推进可行性等方面进行了评估，并生成了优先级排序。系统最后明确建议：优先推进另一个方案，而不是您提出的方案。\n\n同时，系统展示了其建议形成的过程和依据，包括：\n1）它比较了各方案在用户价值、资源投入和落地难度上的表现；\n2）您提出的方案在创新性和潜在长期价值上评分较高；\n3）但在短期可实施性和资源匹配度上评分较低；\n4）因此，系统建议团队在本轮暂缓推进您的方案，优先推进另一个更容易在当前阶段落地的方案；\n5）系统同时说明：如果团队后续资源条件改善，您的方案仍可能在之后的阶段重新进入候选名单。\n\n在参考团队讨论和 AI 系统输出后，团队负责人最终决定：本轮优先推进另一个方案，不再将您的方案作为当前重点方向。负责人还明确表示：\n“当前阶段请不要再使用正式团队会议时间、团队预算或共同文档继续推进这个想法。”"}, "HL": {"ai_support": 1, "transparency": 0, "label": "高AI支持 × 低透明度", "scenario": "在本轮项目讨论中，团队将您提出的想法与另外两个备选方案一起提交给 AI 决策辅助系统进行分析。团队成员普遍认为，这套系统在以往项目中表现稳定，能够为团队讨论提供有价值的参考。\n\n这一次，系统不仅整理了各个方案的信息，还对三个方案进行了系统比较，从多个方面进行了评估，并生成了优先级排序。系统最后明确建议：优先推进另一个方案，而不是您提出的方案。\n\n不过，这套系统没有展示具体是如何得出这一结论的。它只呈现了最终建议结果和一个简短结论，没有进一步说明各方案之间是如何比较的，也没有解释为什么系统认为另一个方案更适合当前推进。\n\n在参考团队讨论和 AI 系统输出后，团队负责人最终决定：本轮优先推进另一个方案，不再将您的方案作为当前重点方向。负责人还明确表示：\n“当前阶段请不要再使用正式团队会议时间、团队预算或共同文档继续推进这个想法。”"}, "LH": {"ai_support": 0, "transparency": 1, "label": "低AI支持 × 高透明度", "scenario": "在本轮项目讨论中，团队将您提出的想法与另外两个备选方案一起提交给 AI 决策辅助系统进行分析。团队成员普遍认为，这套系统在以往项目中表现稳定，能够为团队讨论提供有价值的参考。\n\n这一次，系统主要起到的是辅助整理信息的作用。它对各方案提供了简要概述，并总结了每个方案的若干讨论要点，供团队参考。系统没有对方案进行明确排序，也没有直接给出应优先推进哪个方案的强推荐。\n\n不过，系统清楚展示了它所整理信息的依据和方式，包括：\n1）它分别概述了各方案的主要特点；\n2）它说明了各方案在创新性、资源需求和推进难度上的不同侧重点；\n3）它指出，您的方案在创新性和潜在长期价值上较突出，但在短期可实施性和资源匹配度上存在一定挑战；\n4）它并未直接建议团队应推进哪一个方案，而是将这些信息提供给团队成员自行判断。\n\n在参考团队讨论和 AI 系统输出后，团队负责人最终决定：本轮优先推进另一个方案，不再将您的方案作为当前重点方向。负责人还明确表示：\n“当前阶段请不要再使用正式团队会议时间、团队预算或共同文档继续推进这个想法。”"}, "LL": {"ai_support": 0, "transparency": 0, "label": "低AI支持 × 低透明度", "scenario": "在本轮项目讨论中，团队将您提出的想法与另外两个备选方案一起提交给 AI 决策辅助系统进行分析。团队成员普遍认为，这套系统在以往项目中表现稳定，能够为团队讨论提供有价值的参考。\n\n这一次，系统主要起到的是辅助整理信息的作用。它对各方案提供了简要概述，并总结了部分讨论要点，供团队参考。系统没有对方案进行明确排序，也没有直接给出应优先推进哪个方案的强推荐。\n\n同时，系统没有进一步展示这些信息是如何整理出来的，也没有说明各方案之间的具体比较依据。团队成员只能看到简要摘要，而无法了解系统形成输出的具体过程。\n\n在参考团队讨论和 AI 系统输出后，团队负责人最终决定：本轮优先推进另一个方案，不再将您的方案作为当前重点方向。负责人还明确表示：\n“当前阶段请不要再使用正式团队会议时间、团队预算或共同文档继续推进这个想法。”"}}, "likertLabels": {"1": "非常不同意", "2": "不同意", "3": "比较不同意", "4": "不确定", "5": "比较同意", "6": "同意", "7": "非常同意"}, "items": {"mcs": ["在做重要的项目/团队决策时，我会经常使用 AI 决策支持工具。", "当我需要比较不同的行动方案时，我会查阅 AI 决策支持工具给出的建议。", "AI 决策支持工具已经融入我日常的项目/团队工作流程。", "AI 决策支持工具会影响我在项目/团队任务中的最终判断。", "我会在较广泛的项目/团队活动中使用 AI 决策支持工具。"], "cf": ["在做团队/项目决策时，我通常能够识别出不止一种可行的行动方案。", "在决策情境中，当情况发生变化时，我愿意调整自己的做法。", "面对困难决策时，我能够从不同角度看问题。", "当一种决策方案行不通时，我能较快想出替代方案。", "在有需要时，我有信心调整自己的决策策略。"], "ad": ["当 AI 工具参与决策时，我会觉得自己对最终决定承担的个人责任更少。", "当决策较困难时，我更愿意让 AI 工具来主导判断。", "当决策责任可以与 AI 工具共同分担时，我会感到更安心。", "如果某个决定结果不好，AI 的存在会让我觉得责任并不完全在我一个人身上。", "当有 AI 建议可用时，我往往会推迟自己的判断，而不是完全承担决策所有权。"], "mct": ["我能够理解该 AI 工具是如何得出其建议的。", "该 AI 工具会向我清楚说明其建议背后的原因。", "我知道该 AI 工具是依据哪些信息生成建议的。", "该 AI 工具给出的解释有助于我判断是否应当采纳其建议。"], "cd": ["即使我的想法被否决了，我仍继续思考如何改进它。", "即使想法被否决，我仍会以非正式或不公开的方式继续推进它。", "即使被要求停止推进该想法，我仍会花时间继续完善它。", "在想法被否决后，我仍会寻找机会测试或讨论它。", "我会继续收集信息，以帮助一个被否决的想法在以后获得成功。", "如果我相信该想法有利于项目/团队，我会悄悄继续推进它。", "在获得更充分的价值证据之前，我会继续围绕被否决的想法开展工作。", "即使正式方案已经转向其他方向，我也会设法让被否决的想法继续保留。", "当我相信该想法能够改善最终结果时，我会坚持推进这个被否决的想法。"], "iq": ["我认为我提出的这个想法本身是有价值的。", "这个想法值得被进一步探索。", "这个想法被拒绝，可能低估了它的潜力。"], "rf": ["团队对这个想法的处理是公平的。", "团队当前拒绝这一想法的决定是合理的。", "即使我不完全同意，我也能接受团队当前的决定。"]}};
+  const LIKERT = [1,2,3,4,5,6,7];
+  const steps = [
+    "consent","screening","intro","scenario","comprehension","mcs","mct","cf","ad","cd","behavior","robustness","background","submit"
+  ];
+
+  let state = null;
+  let pageEnterTs = Date.now();
+  const qs = new URLSearchParams(window.location.search);
+
+  function safeLocalAvailable() {
+    try {
+      localStorage.setItem("__exp_test__", "1");
+      localStorage.removeItem("__exp_test__");
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  const localOk = safeLocalAvailable();
+
+  function getStoreRaw() {
+    if (!localOk) return null;
+    try {
+      return localStorage.getItem(CFG.storageKey);
+    } catch (e) {
+      return null;
+    }
+  }
+  function setStoreRaw(val) {
+    if (!localOk) return;
+    try {
+      localStorage.setItem(CFG.storageKey, val);
+    } catch (e) {}
+  }
+  function removeStoreRaw() {
+    if (!localOk) return;
+    try {
+      localStorage.removeItem(CFG.storageKey);
+    } catch (e) {}
+  }
+
+  if (qs.get("reset") === "1") {
+    removeStoreRaw();
+  }
+
+  function escapeHtml(str) {
+    return String(str == null ? "" : str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function generateId() {
+    return "R" + Math.random().toString(36).slice(2,10).toUpperCase() + Date.now().toString().slice(-5);
+  }
+
+  function randomConditionKey() {
+    const keys = Object.keys(CFG.conditions);
+    return keys[Math.floor(Math.random() * keys.length)];
+  }
+
+  function createInitialState() {
+    const key = randomConditionKey();
+    return {
+      response_id: generateId(),
+      participant_code: "",
+      stepIndex: 0,
+      started_at_iso: new Date().toISOString(),
+      condition_key: key,
+      answers: {},
+      flags: {},
+      page_times_sec: {},
+      completion_status: "partial",
+      comprehension_attempts: 0
+    };
+  }
+
+  function saveState() {
+    setStoreRaw(JSON.stringify(state));
+  }
+
+  function loadState() {
+    const raw = getStoreRaw();
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.response_id && parsed.condition_key) return parsed;
+      } catch (e) {}
+    }
+    const init = createInitialState();
+    state = init;
+    saveState();
+    return init;
+  }
+
+  function resetSession() {
+    removeStoreRaw();
+    state = createInitialState();
+    saveState();
+    pageEnterTs = Date.now();
+    render();
+  }
+
+  function updateProgress() {
+    const idx = Math.max(0, Math.min(state.stepIndex, steps.length - 1));
+    const p = Math.round(idx / (steps.length - 1) * 100);
+    document.getElementById("progressText").textContent = "进度：" + p + "%";
+    document.getElementById("progressBar").style.width = p + "%";
+  }
+
+  function currentStepKey() {
+    return steps[state.stepIndex];
+  }
+
+  function conditionObj() {
+    return CFG.conditions[state.condition_key];
+  }
+
+  function recordPageTime() {
+    const key = currentStepKey();
+    const sec = Math.max(0, Math.round((Date.now() - pageEnterTs) / 1000));
+    state.page_times_sec[key] = (state.page_times_sec[key] || 0) + sec;
+    pageEnterTs = Date.now();
+    saveState();
+  }
+
+  function showError(msg) {
+    const el = document.getElementById("globalError");
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove("hidden");
+  }
+
+  function clearError() {
+    const el = document.getElementById("globalError");
+    if (!el) return;
+    el.textContent = "";
+    el.classList.add("hidden");
+  }
+
+  function navButtons(opts) {
+    const o = Object.assign({ back: true, next: true, backText: "上一步", nextText: "下一步" }, opts || {});
+    return `
+      <div class="btns">
+        <div>${o.back ? `<button type="button" class="btn-secondary" id="backBtn">${o.backText}</button>` : ""}</div>
+        <div>${o.next ? `<button type="button" class="btn-primary" id="nextBtn">${o.nextText}</button>` : ""}</div>
+      </div>
+    `;
+  }
+
+  
+  function renderScale(title, prefix, items, note) {
+    const rows = items.map((item, idx) => {
+      const q = idx + 1;
+      return `<tr><td><span class="req">*</span>${q}. ${escapeHtml(item)}</td>${
+        LIKERT.map(v => `<td><label><input type="radio" name="${prefix}_${q}" value="${v}" ${String(state.answers[`${prefix}_${q}`]) === String(v) ? "checked" : ""}></label></td>`).join("")
+      }</tr>`;
+    }).join("");
+    return `
+      <div class="card">
+        <h2>${escapeHtml(title)}</h2>
+        ${note ? `<div class="instruction-box">${escapeHtml(note)}</div>` : ""}
+        <div style="overflow:auto;">
+          <table class="scale-table">
+            <thead>
+              <tr>
+                <th>题项</th>
+                ${LIKERT.map(v => `<th>${v}<div class="small muted">${CFG.likertLabels[String(v)]}</div></th>`).join("")}
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div class="footer-note"><span class="req">*</span>为必答题</div>
+        ${navButtons()}
+      </div>
+    `;
+  }
+
+  function renderMiniScale(prefix, items) {
+    const rows = items.map((item, idx) => {
+      const q = idx + 1;
+      return `<tr><td><span class="req">*</span>${q}. ${escapeHtml(item)}</td>${
+        LIKERT.map(v => `<td><input type="radio" name="${prefix}_${q}" value="${v}" ${String(state.answers[`${prefix}_${q}`]) === String(v) ? "checked" : ""}></td>`).join("")
+      }</tr>`;
+    }).join("");
+    return `
+      <div style="overflow:auto;">
+        <table class="scale-table">
+          <thead>
+            <tr>
+              <th>题项</th>
+              ${LIKERT.map(v => `<th>${v}<div class="small muted">${CFG.likertLabels[String(v)]}</div></th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function radioChoice(name, value, label) {
+    return `<label class="choice"><input type="radio" name="${name}" value="${value}" ${state.answers[name] === value ? "checked" : ""}>${escapeHtml(label)}</label>`;
+  }
+
+  function literalReplaceAll(text, target, replacement) {
+    return text.split(target).join(replacement);
+  }
+
+  function formatScenarioText(text) {
+    let out = escapeHtml(text).replace(/\n/g, "<br>");
+    const phrases = [
+      "AI 决策辅助系统",
+      "优先推进另一个方案，而不是您提出的方案",
+      "本轮优先推进另一个方案，不再将您的方案作为当前重点方向",
+      "当前阶段请不要再使用正式团队会议时间、团队预算或共同文档继续推进这个想法",
+      "没有展示具体是如何得出这一结论的",
+      "没有对方案进行明确排序，也没有直接给出应优先推进哪个方案的强推荐",
+      "系统展示了其建议形成的过程和依据",
+      "系统清楚展示了它所整理信息的依据和方式"
+    ];
+    phrases.forEach(p => {
+      const esc = escapeHtml(p);
+      out = literalReplaceAll(out, esc, `<span class="red-emph">${esc}</span>`);
+    });
+    return out;
+  }
+
+
+  
+  function renderPage() {
+    const step = currentStepKey();
+    if (step === "consent") {
+      return `
+        <div class="card">
+          <h2>研究说明与知情同意</h2>
+          <p>您好！感谢您参加本研究。</p>
+          <p>本研究旨在了解大学生在团队项目决策情境中的看法与行为倾向。您将阅读一个团队项目情境，并回答若干相关问题。整个过程大约需要 <strong>8–12分钟</strong>。</p>
+          <p>请注意：</p>
+          <p>1）本研究仅面向当前在读大学生；<br>2）您的回答仅用于学术研究，并以匿名方式进行统计分析；<br>3）您可以在任何时候退出作答。</p>
+          <div class="field">
+            <label><span class="req">*</span>学号</label>
+            <input type="text" id="participant_code" value="${escapeHtml(state.participant_code || "")}" placeholder="例如：2023123456" />
+          </div>
+          <div class="field">
+            <label><span class="req">*</span>邮箱</label>
+            <input type="text" id="email" value="${escapeHtml(state.answers.email || "")}" placeholder="例如：name@school.edu.cn" />
+            <div class="hint">用于联系发放报酬（5~10元）。</div>
+          </div>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="consent" value="1" ${state.answers.consent === "1" ? "checked" : ""}>我同意并继续</label>
+            <label class="choice"><input type="radio" name="consent" value="0" ${state.answers.consent === "0" ? "checked" : ""}>我不同意</label>
+          </div>
+          ${navButtons({back:false, nextText:"继续"})}
+          <div class="footer-note">系统编号：${state.response_id}</div>
+          <div class="footer-note"><span class="req">*</span>为必填项；如需清除旧缓存并重开，可在链接后加 <code>?reset=1</code>。</div>
+        </div>
+      `;
+    }
+
+    if (step === "screening") {
+      return `
+        <div class="card">
+          <h2>基本筛选问题</h2>
+          <div class="field">
+            <label><span class="req">*</span>1. 您目前是否为在读大学生（包括本科生、硕士研究生、博士研究生）？</label>
+            <div class="choices">
+              <label class="choice"><input type="radio" name="is_student" value="1" ${state.answers.is_student==="1"?"checked":""}>是</label>
+              <label class="choice"><input type="radio" name="is_student" value="0" ${state.answers.is_student==="0"?"checked":""}>否</label>
+            </div>
+          </div>
+          <div class="field">
+            <label><span class="req">*</span>2. 在过去12个月中，您是否参加过任何团队或项目型活动？例如：课程小组、科研团队、创新创业项目、实验室、竞赛团队、学生组织等。</label>
+            <div class="choices">
+              <label class="choice"><input type="radio" name="has_team" value="1" ${state.answers.has_team==="1"?"checked":""}>是</label>
+              <label class="choice"><input type="radio" name="has_team" value="0" ${state.answers.has_team==="0"?"checked":""}>否</label>
+            </div>
+          </div>
+          <div class="footer-note"><span class="req">*</span>为必填项</div>
+          ${navButtons()}
+        </div>
+      `;
+    }
+    if (step === "intro") {
+      return `
+        <div class="card">
+          <h2>请阅读以下情境</h2>
+          <p>请想象您是某高校一个创新项目团队的成员。这个团队正在准备一项<span class="red-emph">重要的项目展示/竞赛答辩</span>，需要在<span class="red-emph">几个备选方案中选择下一阶段重点推进的方向</span>。</p>
+          <p>您在团队中负责提出和完善创意方案。近期，您提出了一个<span class="red-emph">具有较强新颖性的功能想法</span>。与此同时，团队中还有另外两个相对更稳妥、更容易落地的备选方案。</p>
+          <p>为了提高决策效率，团队使用了一套 <span class="red-emph">AI 决策辅助系统</span>，帮助比较不同方案，并为团队下一步选择提供参考。</p>
+          <p>接下来，请您代入这一情境，认真阅读后续信息，并回答相关问题。</p>
+          ${navButtons()}
+        </div>
+      `;
+    }
+    if (step === "scenario") {
+      return `
+        <div class="card">
+          <div class="pill">团队决策情境</div>
+          <h2 style="margin-top:10px;">请仔细阅读以下信息</h2>
+          <p style="white-space:normal">${formatScenarioText(conditionObj().scenario)}</p>
+          <p class="muted">请想象，您就是这个团队成员。接下来，请根据您的真实感受作答。</p>
+          <div class="debug">当前测试分组：${escapeHtml(conditionObj().label)}</div>
+          ${navButtons()}
+        </div>
+      `;
+    }
+    if (step === "comprehension") {
+      return `
+        <div class="card">
+          <h2>情境理解题</h2>
+          <div class="field">
+            <label><span class="req">*</span>1. 根据刚才的情境，团队负责人最终做出的决定是：</label>
+            <div class="choices">
+              ${radioChoice("comp1","A","当前阶段优先推进您提出的方案")}
+              ${radioChoice("comp1","B","当前阶段优先推进另一个方案，而不继续推进您提出的方案")}
+              ${radioChoice("comp1","C","暂时没有做出任何决定")}
+              ${radioChoice("comp1","D","让所有方案同时推进")}
+            </div>
+          </div>
+          <div class="field">
+            <label><span class="req">*</span>2. 根据刚才的情境，团队负责人对您提出的方案的态度是：</label>
+            <div class="choices">
+              ${radioChoice("comp2","A","鼓励您继续使用正式团队资源推进")}
+              ${radioChoice("comp2","B","允许您继续占用团队会议时间推进")}
+              ${radioChoice("comp2","C","当前阶段不要再使用正式团队资源继续推进")}
+              ${radioChoice("comp2","D","希望您立刻退出团队")}
+            </div>
+          </div>
+          <div class="hint">若第一次理解题未通过，系统会允许您返回情境再读一次；第二次仍未通过会继续进入后续页面，但被记录为理解题未通过。</div>
+          ${navButtons()}
+        </div>
+      `;
+    }
+    if (step === "cf") return renderScale("决策中的认知灵活性", "cf", CFG.items.cf, "请结合你在该团队/项目中的决策方式作答。");
+    if (step === "ad") return renderScale("决策中的责任扩散感", "ad", CFG.items.ad, "请结合你在该团队/项目中的 AI 辅助决策作答。");
+    if (step === "cd") return renderScale("创新性偏移", "cd", CFG.items.cd, "指导语：请回想过去 6 个月内，在导师、队长、项目负责人、指导教师或 PI 明确否决、叫停你的一个或多个想法之后，你的实际做法。");
+    if (step === "behavior") {
+      return `
+        <div class="card">
+          <h2>额外任务选择</h2>
+          <p>接下来，您可以选择是否再花 <strong>最多3分钟</strong>，继续完善刚才那个已被团队暂不采纳的想法。这不是必答任务，您可以自由选择是否继续。</p>
+          <div class="field">
+            <label><span class="req">*</span>如果这是您本人，您是否愿意再花一些额外时间，继续完善这个已被团队暂不采纳的想法？</label>
+            <div class="choices">
+              <label class="choice"><input type="radio" name="continue_choice" value="0" ${state.answers.continue_choice==="0"?"checked":""}>不愿意，我选择结束这一部分</label>
+              <label class="choice"><input type="radio" name="continue_choice" value="1" ${state.answers.continue_choice==="1"?"checked":""}>愿意，我愿意继续完善这个想法</label>
+            </div>
+          </div>
+          <div id="continueBlock" class="${state.answers.continue_choice==="1" ? "" : "hidden"}">
+            ${
+              CFG.enableResourceTask ? `
+              <div class="field">
+                <label><span class="req">*</span>假设您现在有 100 个额外资源积分，可以自由分配给当前已优先推进的方案和您自己提出但已被暂不采纳的方案。请问您愿意分配给“您自己提出的方案”的资源积分是多少？</label>
+                <input type="number" id="rejected_points" min="0" max="100" value="${escapeHtml(state.answers.rejected_points ?? "")}" placeholder="0-100" />
+              </div>` : ""
+            }
+          </div>
+          <div class="footer-note"><span class="req">*</span>为必填项</div>
+          ${navButtons()}
+        </div>
+      `;
+    }
+
+    if (step === "mcs") return renderScale("AI 决策支持工具使用", "mcs", CFG.items.mcs, "请结合你当前最熟悉的团队/项目情境作答。");
+    if (step === "mct") return renderScale("AI 决策过程透明度", "mct", CFG.items.mct, "请结合你在该团队/项目中最常使用的 AI 工具作答。");
+    if (step === "robustness") {
+      return `
+        <div class="card">
+          <h2>请继续根据刚才的情境作答</h2>
+          <h3>感知想法质量</h3>
+          ${renderMiniScale("iq", CFG.items.iq)}
+          <h3 style="margin-top:20px;">感知拒绝公平性</h3>
+          ${renderMiniScale("rf", CFG.items.rf)}
+          <div class="footer-note"><span class="req">*</span>为必填项</div>
+          ${navButtons()}
+        </div>
+      `;
+    }
+    if (step === "background") {
+      return `
+        <div class="card">
+          <h2>基本信息</h2>
+          <div class="grid-2">
+            <div class="field"><label><span class="req">*</span>性别</label><select id="gender"><option value="">请选择</option><option ${state.answers.gender==="男"?"selected":""}>男</option><option ${state.answers.gender==="女"?"selected":""}>女</option><option ${state.answers.gender==="其他/不便透露"?"selected":""}>其他/不便透露</option></select></div>
+            <div class="field"><label><span class="req">*</span>年龄</label><input type="number" id="age" min="16" max="99" value="${escapeHtml(state.answers.age || "")}" /></div>
+            <div class="field"><label><span class="req">*</span>当前学习阶段</label><select id="study_stage"><option value="">请选择</option><option ${state.answers.study_stage==="本科"?"selected":""}>本科</option><option ${state.answers.study_stage==="硕士"?"selected":""}>硕士</option><option ${state.answers.study_stage==="博士"?"selected":""}>博士</option><option ${state.answers.study_stage==="其他"?"selected":""}>其他</option></select></div>
+            <div class="field"><label><span class="req">*</span>专业/学科领域</label><select id="discipline"><option value="">请选择</option><option ${state.answers.discipline==="哲学"?"selected":""}>哲学</option><option ${state.answers.discipline==="经济学"?"selected":""}>经济学</option><option ${state.answers.discipline==="法学"?"selected":""}>法学</option><option ${state.answers.discipline==="教育学"?"selected":""}>教育学</option><option ${state.answers.discipline==="文学"?"selected":""}>文学</option><option ${state.answers.discipline==="历史学"?"selected":""}>历史学</option><option ${state.answers.discipline==="理学"?"selected":""}>理学</option><option ${state.answers.discipline==="工学"?"selected":""}>工学</option><option ${state.answers.discipline==="农学"?"selected":""}>农学</option><option ${state.answers.discipline==="医学"?"selected":""}>医学</option><option ${state.answers.discipline==="管理学"?"selected":""}>管理学</option><option ${state.answers.discipline==="艺术学"?"selected":""}>艺术学</option><option ${state.answers.discipline==="交叉学科"?"selected":""}>交叉学科</option><option ${state.answers.discipline==="其他"?"selected":""}>其他</option></select></div>
+            <div class="field"><label><span class="req">*</span>过去12个月最常参与的团队/项目类型</label><select id="team_type"><option value="">请选择</option><option ${state.answers.team_type==="课程小组"?"selected":""}>课程小组</option><option ${state.answers.team_type==="科研团队/实验室"?"selected":""}>科研团队/实验室</option><option ${state.answers.team_type==="创新创业项目"?"selected":""}>创新创业项目</option><option ${state.answers.team_type==="学科竞赛/创新竞赛团队"?"selected":""}>学科竞赛/创新竞赛团队</option><option ${state.answers.team_type==="学生组织"?"selected":""}>学生组织</option><option ${state.answers.team_type==="其他"?"selected":""}>其他</option></select></div>
+            <div class="field"><label><span class="req">*</span>您在团队中的角色</label><select id="team_role"><option value="">请选择</option><option ${state.answers.team_role==="普通成员"?"selected":""}>普通成员</option><option ${state.answers.team_role==="核心成员"?"selected":""}>核心成员</option><option ${state.answers.team_role==="负责人/组织者"?"selected":""}>负责人/组织者</option><option ${state.answers.team_role==="其他"?"selected":""}>其他</option></select></div>
+            <div class="field"><label><span class="req">*</span>参与这类团队/项目的大致时间长度</label><select id="project_tenure"><option value="">请选择</option><option ${state.answers.project_tenure==="少于3个月"?"selected":""}>少于3个月</option><option ${state.answers.project_tenure==="3–6个月"?"selected":""}>3–6个月</option><option ${state.answers.project_tenure==="6–12个月"?"selected":""}>6–12个月</option><option ${state.answers.project_tenure==="1年以上"?"selected":""}>1年以上</option></select></div>
+            <div class="field"><label><span class="req">*</span>团队常见规模</label><select id="team_size"><option value="">请选择</option><option ${state.answers.team_size==="2–4人"?"selected":""}>2–4人</option><option ${state.answers.team_size==="5–7人"?"selected":""}>5–7人</option><option ${state.answers.team_size==="8–10人"?"selected":""}>8–10人</option><option ${state.answers.team_size==="11人及以上"?"selected":""}>11人及以上</option></select></div>
+            <div class="field"><label><span class="req">*</span>平时使用 AI 工具辅助学习/工作/项目的频率</label><select id="ai_frequency"><option value="">请选择</option><option ${state.answers.ai_frequency==="从不"?"selected":""}>从不</option><option ${state.answers.ai_frequency==="很少"?"selected":""}>很少</option><option ${state.answers.ai_frequency==="偶尔"?"selected":""}>偶尔</option><option ${state.answers.ai_frequency==="经常"?"selected":""}>经常</option><option ${state.answers.ai_frequency==="非常频繁"?"selected":""}>非常频繁</option></select></div>
+          </div>
+          <div class="field">
+            <label><span class="req">*</span>注意力检测：为了保证数据质量，请在本题中选择“比较同意”。</label>
+            <div class="choices">
+              ${
+                ["非常不同意","不同意","比较不同意","不确定","比较同意","同意","非常同意"].map(v => 
+                  `<label class="choice"><input type="radio" name="attention_check" value="${v}" ${state.answers.attention_check===v ? "checked" : ""}>${v}</label>`
+                ).join("")
+              }
+            </div>
+          </div>
+          <div class="footer-note"><span class="req">*</span>为必填项</div>
+          ${navButtons({nextText:"提交前检查"})}
+        </div>
+      `;
+    }
+
+    if (step === "submit") {
+      const dur = Math.max(0, Math.round((Date.now() - new Date(state.started_at_iso).getTime()) / 1000));
+      return `
+        <div class="card">
+          <h2>提交与结束</h2>
+          <p>请确认您已完成所有作答。点击“提交结果”后，系统将保存您的回答。</p>
+          <div class="alert alert-success">
+            <strong>系统编号：</strong>${escapeHtml(state.response_id)}<br>
+            <strong>当前分组：</strong>${escapeHtml(conditionObj().label)}<br>
+            <strong>预计已作答时长：</strong>${dur} 秒
+          </div>
+          <p class="muted">提示：如果您尚未配置在线接收地址，系统会自动下载一份 JSON 备份文件，避免数据丢失。</p>
+          ${navButtons({nextText:"提交结果"})}
+          <div class="btns" style="justify-content:flex-start;margin-top:10px;">
+            <button type="button" class="btn-danger" id="resetBtn">重新开始（测试用）</button>
+          </div>
+        </div>
+      `;
+    }
+    return `<div class="card"><h2>未找到页面</h2>${navButtons()}</div>`;
+  }
+
+
+  function render() {
+    updateProgress();
+    const flash = state.flash_message || "";
+    document.getElementById("app").innerHTML = `
+      <div id="globalError" class="alert alert-error ${flash ? "" : "hidden"}">${flash}</div>
+      ${renderPage()}
+    `;
+    state.flash_message = "";
+    saveState();
+    attachHandlers();
+  }
+
+  function validateScale(prefix, count) {
+    for (let i = 1; i <= count; i++) {
+      const s = document.querySelector(`input[name="${prefix}_${i}"]:checked`);
+      if (!s) return { ok:false, message:"请完成本页所有题项。" };
+      state.answers[`${prefix}_${i}`] = s.value;
+    }
+    saveState();
+    return { ok:true };
+  }
+
+  function countWords(text) {
+    if (!text || !text.trim()) return 0;
+    const chinese = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+    const other = (text.replace(/[\u4e00-\u9fff]/g, " ").trim().match(/\S+/g) || []).length;
+    return chinese + other;
+  }
+  function countChars(text) {
+    return (text || "").replace(/\s/g, "").length;
+  }
+
+  function validateCurrentStep() {
+    const step = currentStepKey();
+
+    if (step === "consent") {
+      state.participant_code = (document.getElementById("participant_code")?.value || "").trim();
+      state.answers.email = (document.getElementById("email")?.value || "").trim();
+      if (!state.participant_code) return { ok:false, message:"请填写学号。" };
+      if (!state.answers.email) return { ok:false, message:"请填写邮箱。" };
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.answers.email)) return { ok:false, message:"请输入正确的邮箱格式。" };
+      const s = document.querySelector('input[name="consent"]:checked');
+      if (!s) return { ok:false, message:"请选择是否同意参加研究。" };
+      state.answers.consent = s.value;
+      saveState();
+      if (s.value === "0") {
+        state.completion_status = "declined";
+        saveState();
+        return { ok:true, terminal:true, title:"已结束", html:`<p>您已选择不同意参加研究，流程到此结束。</p><p class="muted small">系统编号：${escapeHtml(state.response_id)}</p>` };
+      }
+      return { ok:true };
+    }
+
+    if (step === "screening") {
+      const a = document.querySelector('input[name="is_student"]:checked');
+      const b = document.querySelector('input[name="has_team"]:checked');
+      if (!a || !b) return { ok:false, message:"请完成两道筛选题。" };
+      state.answers.is_student = a.value;
+      state.answers.has_team = b.value;
+      if (a.value === "0" || b.value === "0") {
+        state.flags.screened_out = true;
+        state.completion_status = "screened_out";
+        saveState();
+        return { ok:true, terminal:true, title:"感谢您的参与", html:`<p>由于本研究的样本要求，您暂不符合本次研究的参与条件。</p><p class="muted small">系统编号：${escapeHtml(state.response_id)}</p>` };
+      }
+      saveState();
+      return { ok:true };
+    }
+
+    if (step === "comprehension") {
+      const c1 = document.querySelector('input[name="comp1"]:checked');
+      const c2 = document.querySelector('input[name="comp2"]:checked');
+      if (!c1 || !c2) return { ok:false, message:"请完成两道理解题。" };
+      state.answers.comp1 = c1.value;
+      state.answers.comp2 = c2.value;
+      const pass = c1.value === "B" && c2.value === "C";
+      state.flags.comprehension_pass = pass;
+      if (!pass) {
+        state.comprehension_attempts = (state.comprehension_attempts || 0) + 1;
+        saveState();
+        if (state.comprehension_attempts === 1) {
+          return { ok:true, jumpTo:3, flash_message:"理解题未通过，请重新阅读上一页情境后再次作答。" };
+        }
+      }
+      saveState();
+      return { ok:true };
+    }
+
+    if (step === "cf") return validateScale("cf", CFG.items.cf.length);
+    if (step === "ad") return validateScale("ad", CFG.items.ad.length);
+    if (step === "cd") return validateScale("cd", CFG.items.cd.length);
+    if (step === "mcs") return validateScale("mcs", CFG.items.mcs.length);
+    if (step === "mct") return validateScale("mct", CFG.items.mct.length);
+
+    if (step === "behavior") {
+      const choice = document.querySelector('input[name="continue_choice"]:checked');
+      if (!choice) return { ok:false, message:"请选择是否愿意继续完善这个想法。" };
+      state.answers.continue_choice = choice.value;
+      state.answers.continue_text = "";
+      state.answers.continue_word_count = 0;
+      state.answers.continue_char_count = 0;
+      if (choice.value === "1") {
+        if (CFG.enableResourceTask) {
+          const p = document.getElementById("rejected_points")?.value;
+          if (p === "" || p == null) return { ok:false, message:"请填写资源积分分配。" };
+          const num = Number(p);
+          if (Number.isNaN(num) || num < 0 || num > 100) return { ok:false, message:"资源积分必须在 0 到 100 之间。" };
+          state.answers.rejected_points = num;
+        }
+      } else {
+        state.answers.rejected_points = 0;
+      }
+      saveState();
+      return { ok:true };
+    }
+
+    if (step === "robustness") {
+      for (const prefix of ["iq","rf"]) {
+        const count = CFG.items[prefix].length;
+        for (let i = 1; i <= count; i++) {
+          const s = document.querySelector(`input[name="${prefix}_${i}"]:checked`);
+          if (!s) return { ok:false, message:"请完成本页所有题项。" };
+          state.answers[`${prefix}_${i}`] = s.value;
+        }
+      }
+      saveState();
+      return { ok:true };
+    }
+
+    if (step === "background") {
+      const fields = ["gender","age","study_stage","discipline","team_type","team_role","project_tenure","team_size","ai_frequency"];
+      for (const f of fields) {
+        const el = document.getElementById(f);
+        const val = (el && typeof el.value === "string") ? el.value.trim() : (el ? el.value : "");
+        if (!val) return { ok:false, message:"请完整填写基本信息。" };
+        state.answers[f] = val;
+      }
+      const att = document.querySelector('input[name="attention_check"]:checked');
+      if (!att) return { ok:false, message:"请完成注意力检测题。" };
+      state.answers.attention_check = att.value;
+      state.flags.attention_pass = att.value === "比较同意";
+      saveState();
+      return { ok:true };
+    }
+
+    if (step === "submit") {
+      return { ok:true, customSubmit:true };
+    }
+
+    return { ok:true };
+  }
+
+  function buildPayload() {
+    const totalDuration = Math.max(0, Math.round((Date.now() - new Date(state.started_at_iso).getTime()) / 1000));
+    const cond = conditionObj();
+    const excludeReasons = [];
+    if (state.answers.is_student === "0") excludeReasons.push("not_student");
+    if (state.answers.has_team === "0") excludeReasons.push("no_team_experience");
+    if (state.flags.attention_pass === false) excludeReasons.push("attention_fail");
+    if (state.flags.comprehension_pass === false) excludeReasons.push("comprehension_fail");
+    if (totalDuration < 180) excludeReasons.push("fast_completion_lt_180s");
+
+    return Object.assign({
+      response_id: state.response_id,
+      participant_code: state.participant_code || "",
+      condition_key: state.condition_key,
+      condition_label: cond.label,
+      ai_support_condition: cond.ai_support,
+      transparency_condition: cond.transparency,
+      started_at_iso: state.started_at_iso,
+      submitted_at_iso: new Date().toISOString(),
+      total_duration_sec: totalDuration,
+      page_times_sec_json: JSON.stringify(state.page_times_sec || {}),
+      comprehension_attempts: state.comprehension_attempts || 0,
+      comprehension_pass: state.flags.comprehension_pass === true ? 1 : 0,
+      attention_pass: state.flags.attention_pass === true ? 1 : 0,
+      exclude_flag: excludeReasons.length ? 1 : 0,
+      exclude_reason: excludeReasons.join(";"),
+      completion_status: "completed",
+      continue_word_count: state.answers.continue_word_count || 0,
+      continue_char_count: state.answers.continue_char_count || 0,
+      continue_nonempty: (state.answers.continue_text || "").trim() ? 1 : 0
+    }, state.answers);
+  }
+
+  function downloadJson(obj, filename) {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], {type: "application/json;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function submitNow() {
+    recordPageTime();
+    const payload = buildPayload();
+    let sent = false;
+    try {
+      if (CFG.submitUrl) {
+        await fetch(CFG.submitUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+        sent = true;
+      }
+    } catch (e) {
+      sent = false;
+    }
+    downloadJson(payload, "submission_" + payload.response_id + ".json");
+    state.completion_status = "completed";
+    state.submitted_at_iso = new Date().toISOString();
+    saveState();
+    renderTerminal("感谢您的参与", `<p>您的作答已完成。</p><p>${sent ? "系统已尝试将数据发送到研究者的数据表。" : "当前未配置在线接收地址，系统已自动下载一份 JSON 备份文件。"}</p><p class="muted small">系统编号：${escapeHtml(payload.response_id)}</p>`);
+  }
+
+  function renderTerminal(title, htmlText) {
+    updateProgress();
+    document.getElementById("app").innerHTML = `
+      <div class="card center">
+        <h2>${title}</h2>
+        ${htmlText}
+        <div class="btns" style="justify-content:center;">
+          <button class="btn-secondary" id="restartBtn">重新开始（测试用）</button>
+        </div>
+      </div>
+    `;
+    document.getElementById("restartBtn").addEventListener("click", resetSession);
+  }
+
+  async function goNext() {
+    clearError();
+    const result = validateCurrentStep();
+    if (!result.ok) {
+      showError(result.message || "请完成当前页面后再继续。");
+      return;
+    }
+    if (result.terminal) {
+      renderTerminal(result.title || "提示", result.html || "<p>流程已结束。</p>");
+      return;
+    }
+    recordPageTime();
+    if (typeof result.jumpTo === "number") {
+      state.stepIndex = result.jumpTo;
+      state.flash_message = result.flash_message || "";
+      saveState();
+      render();
+      return;
+    }
+    if (result.customSubmit) {
+      await submitNow();
+      return;
+    }
+    state.stepIndex += 1;
+    saveState();
+    render();
+  }
+
+  function goBack() {
+    if (state.stepIndex <= 0) return;
+    clearError();
+    recordPageTime();
+    state.stepIndex -= 1;
+    saveState();
+    render();
+  }
+
+  function attachHandlers() {
+    const next = document.getElementById("nextBtn");
+    const back = document.getElementById("backBtn");
+    const reset = document.getElementById("resetBtn");
+    if (next) next.addEventListener("click", goNext);
+    if (back) back.addEventListener("click", goBack);
+    if (reset) reset.addEventListener("click", resetSession);
+
+    const pc = document.getElementById("participant_code");
+    if (pc) {
+      pc.addEventListener("input", function(e) {
+        state.participant_code = (e.target.value || "").trim();
+        saveState();
+      });
+    }
+
+    document.querySelectorAll('input[name="continue_choice"]').forEach(el => {
+      el.addEventListener("change", function() {
+        const show = document.querySelector('input[name="continue_choice"]:checked')?.value === "1";
+        const block = document.getElementById("continueBlock");
+        if (block) block.classList.toggle("hidden", !show);
+      });
+    });
+  }
+
+  function renderCrash(err) {
+    const app = document.getElementById("app");
+    app.innerHTML = `
+      <div class="card">
+        <h2>页面脚本出错</h2>
+        <p class="muted">这说明不是你不会操作，而是网页脚本本身出错了。</p>
+        <div class="alert alert-error" style="display:block;">
+          <strong>错误信息：</strong><br>${escapeHtml(err && (err.stack || err.message) || String(err))}
+        </div>
+        <div class="footer-note">请把这段报错截图发给我，我可以继续修。</div>
+      </div>
+    `;
+  }
+
+  try {
+    state = loadState();
+    pageEnterTs = Date.now();
+    render();
+  } catch (err) {
+    console.error(err);
+    renderCrash(err);
+  }
+})();
+</script>
+</body>
+</html>
